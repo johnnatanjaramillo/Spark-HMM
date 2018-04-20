@@ -21,7 +21,7 @@ object Train {
     * file with structure: M;k;finalPi,finalA,finalB
     */
   def main(args: Array[String]): Unit = {
-    if(args(0).equals("1")){
+    if(args(0).equals("0")){
       Logger.getLogger("org").setLevel(Level.ERROR)
       Logger.getLogger("akka").setLevel(Level.ERROR)
     }
