@@ -13,7 +13,9 @@ object Train {
     * args(3): Value of M
     * args(4): Value of k
     * args(5): Number of partitions (fw-bw process)
-    * args(6): Path to result
+    * args(6): Value of epsilon
+    * args(7): Max num iterations
+    * args(8): Path to result
     *
     * @return result
     * file with structure: M;k;finalPi,finalA,finalB
@@ -31,8 +33,8 @@ object Train {
       normalize(DenseVector.rand(args(3).toInt), 1.0),
       hmm.Utils.mkstochastic(DenseMatrix.rand(args(3).toInt, args(3).toInt)),
       hmm.Utils.mkstochastic(DenseMatrix.rand(args(3).toInt, args(4).toInt)),
-      args(5).toInt)
-    hmm.Utils.writeresult(args(6),
+      args(5).toInt, args(6).toDouble, args(7).toInt)
+    hmm.Utils.writeresult(args(8),
       args(3) + ";" +
         args(4) + ";" +
         result._1.toArray.mkString(",") + ";" +
