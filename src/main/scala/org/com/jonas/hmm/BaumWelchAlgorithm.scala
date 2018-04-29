@@ -79,6 +79,7 @@ object BaumWelchAlgorithm {
 
   val udf_toarray: UserDefinedFunction = udf((s: String) => s.split(";").map(_.toInt))
   val udf_obssize: UserDefinedFunction = udf((s: Seq[Int]) => s.length)
+
   val udf_gamma: UserDefinedFunction = udf((input: Row) => input.get(0).asInstanceOf[Seq[Double]].mkString(","))
   val udf_loglik: UserDefinedFunction = udf((input: Row) => input.get(1).asInstanceOf[Double])
   val udf_xi_summed: UserDefinedFunction = udf((input: Row) => input.get(2).asInstanceOf[Seq[Double]].mkString(","))
