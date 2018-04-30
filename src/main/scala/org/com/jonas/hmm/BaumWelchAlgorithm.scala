@@ -43,11 +43,6 @@ object BaumWelchAlgorithm {
           .withColumn("exp_num_emit", udf_exp_num_emit(col("gamma"), col("M"), col("k"), col("T"), col("obs")))
 //          .drop("gamma", "obs")
           .reduce((row1, row2) => {
-//            row1.getAs[Double]("loglik") + row2.getAs[Double]("loglik")
-//            (row1.getAs[Seq[Double]]("xi_summed"), row2.getAs[Seq[Double]]("xi_summed")).zipped.map(_ + _)
-//            (row1.getAs[Seq[Double]]("exp_num_visits1"), row2.getAs[Seq[Double]]("exp_num_visits1")).zipped.map(_ + _)
-//            (row1.getAs[Seq[Double]]("exp_num_emit"), row2.getAs[Seq[Double]]("exp_num_emit")).zipped.map(_ + _)
-
           Row(
             row1.get(0),
             row1.get(1),
@@ -60,28 +55,31 @@ object BaumWelchAlgorithm {
             row1.get(8),
             row1.get(9),
             row1.get(10),
-            row1.get(11),
-            row1.get(12),
-            row1.get(13),
-            row1.get(14))
-          /*
-          Row(
-            row1.getAs[String]("workitem"),
-            row1.getAs[String]("str_obs"),
-            row1.getAs[Int]("M"),
-            row1.getAs[Int]("k"),
-            row1.getAs[Seq[Double]]("Pi"),
-            row1.getAs[Seq[Double]]("A"),
-            row1.getAs[Seq[Double]]("B"),
-            row1.getAs[Seq[Int]]("obs"),
-            row1.getAs[Seq[Double]]("gamma"),
-            row1.getAs[Double]("loglik"),
-            row1.getAs[Seq[Double]]("xi_summed"),
-            row1.getAs[Seq[Double]]("exp_num_visits1"),
-            row1.getAs[Seq[Double]]("exp_num_emit"))*/
+            row1.getAs[Double](11) + row2.getAs[Double](11),
+            (row1.getAs[Seq[Double]](12), row2.getAs[Seq[Double]](12)).zipped.map(_ + _),
+            (row1.getAs[Seq[Double]](13), row2.getAs[Seq[Double]](13)).zipped.map(_ + _),
+            (row1.getAs[Seq[Double]](14), row2.getAs[Seq[Double]](14)).zipped.map(_ + _))
           })
-//
-        println(newvalues.mkString("|"))
+
+        val loglik = newvalues.getAs[Double](11)
+        prior = normalize(new DenseVector(newvalues.getAs[Seq[Double]](13).toArray), 1.0)
+        transmat = Utils.mkstochastic(new DenseMatrix(M, M, newvalues.getAs[Seq[Double]](12).toArray))
+        obsmat = Utils.mkstochastic(new DenseMatrix(M, k, newvalues.getAs[Seq[Double]](14).toArray))
+
+        if (Utils.emconverged(loglik, antloglik, epsilon)) break
+        antloglik = loglik
+
+        obstrained.unpersist()
+        obstrained = observations
+          .withColumn("M", lit(M))
+          .withColumn("k", lit(k))
+          .withColumn("Pi", lit(prior.toArray))
+          .withColumn("A", lit(transmat.toArray))
+          .withColumn("B", lit(obsmat.toArray))
+          .withColumn("obs", udf_toarray(col("str_obs")))
+          .withColumn("T", udf_obssize(col("obs")))
+
+//        println(newvalues.mkString("|"))
 //        newvalues.printSchema()
 
         /*
