@@ -26,7 +26,7 @@ object Train {
 
     val sparkSession = SparkSession.builder.appName("Spark-HMM").getOrCreate()
 
-    val sample: DataFrame = sparkSession.read.csv(applicationProps.getProperty("path_sample"))
+    val sample: DataFrame = sparkSession.read.option("header", "true").csv(applicationProps.getProperty("path_sample"))
       .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
       .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
 
