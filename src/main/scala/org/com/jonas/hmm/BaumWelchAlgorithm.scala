@@ -30,6 +30,61 @@ object BaumWelchAlgorithm {
 
     breakable {
       (0 until maxIterations).foreach(_ => {
+
+        val newvalues = obstrained.repartition(numPartitions)
+          .withColumn("obslik", udf_multinomialprob(col("obs"), col("M"), col("k"), col("T"), col("B")))
+          .withColumn("fwdback", udf_fwdback(col("M"), col("T"), col("Pi"), col("A"), col("obslik")))
+//          .drop("Pi", "A", "B", "obslik")
+          .withColumn("gamma", udf_gamma(col("fwdback")))
+          .withColumn("loglik", udf_loglik(col("fwdback")))
+          .withColumn("xi_summed", udf_xi_summed(col("fwdback")))
+          .drop("fwdback")
+          .withColumn("exp_num_visits1", udf_exp_num_visits1(col("gamma"), col("M"), col("T")))
+          .withColumn("exp_num_emit", udf_exp_num_emit(col("gamma"), col("M"), col("k"), col("T"), col("obs")))
+//          .drop("gamma", "obs")
+          .reduce((row1, row2) => {
+//            row1.getAs[Double]("loglik") + row2.getAs[Double]("loglik")
+//            (row1.getAs[Seq[Double]]("xi_summed"), row2.getAs[Seq[Double]]("xi_summed")).zipped.map(_ + _)
+//            (row1.getAs[Seq[Double]]("exp_num_visits1"), row2.getAs[Seq[Double]]("exp_num_visits1")).zipped.map(_ + _)
+//            (row1.getAs[Seq[Double]]("exp_num_emit"), row2.getAs[Seq[Double]]("exp_num_emit")).zipped.map(_ + _)
+
+          Row(
+            row1.get(0),
+            row1.get(1),
+            row1.get(2),
+            row1.get(3),
+            row1.get(4),
+            row1.get(5),
+            row1.get(6),
+            row1.get(7),
+            row1.get(8),
+            row1.get(9),
+            row1.get(10),
+            row1.get(11),
+            row1.get(12),
+            row1.get(13),
+            row1.get(14))
+          /*
+          Row(
+            row1.getAs[String]("workitem"),
+            row1.getAs[String]("str_obs"),
+            row1.getAs[Int]("M"),
+            row1.getAs[Int]("k"),
+            row1.getAs[Seq[Double]]("Pi"),
+            row1.getAs[Seq[Double]]("A"),
+            row1.getAs[Seq[Double]]("B"),
+            row1.getAs[Seq[Int]]("obs"),
+            row1.getAs[Seq[Double]]("gamma"),
+            row1.getAs[Double]("loglik"),
+            row1.getAs[Seq[Double]]("xi_summed"),
+            row1.getAs[Seq[Double]]("exp_num_visits1"),
+            row1.getAs[Seq[Double]]("exp_num_emit"))*/
+          })
+//
+        println(newvalues.mkString("|"))
+//        newvalues.printSchema()
+
+        /*
         val computehmm = new ComputeHMM
         val newvalues = obstrained.repartition(numPartitions)
           .withColumn("obslik", udf_multinomialprob(col("obs"), col("M"), col("k"), col("T"), col("B")))
@@ -57,6 +112,7 @@ object BaumWelchAlgorithm {
           .withColumn("B", lit(obsmat.toArray))
           .withColumn("obs", udf_toarray(col("str_obs")))
           .withColumn("T", udf_obssize(col("obs")))
+          */
       })
     }
     (prior, transmat, obsmat)
@@ -79,9 +135,36 @@ object BaumWelchAlgorithm {
 
   val udf_toarray: UserDefinedFunction = udf((s: String) => s.split(";").map(_.toInt))
   val udf_obssize: UserDefinedFunction = udf((s: Seq[Int]) => s.length)
-  val udf_gamma: UserDefinedFunction = udf((input: Row) => input.get(0).asInstanceOf[Seq[Double]].mkString(","))
+
+  val udf_gamma: UserDefinedFunction = udf((input: Row) => input.get(0).asInstanceOf[Seq[Double]])
   val udf_loglik: UserDefinedFunction = udf((input: Row) => input.get(1).asInstanceOf[Double])
-  val udf_xi_summed: UserDefinedFunction = udf((input: Row) => input.get(2).asInstanceOf[Seq[Double]].mkString(","))
+  val udf_xi_summed: UserDefinedFunction = udf((input: Row) => input.get(2).asInstanceOf[Seq[Double]])
+
+  val udf_exp_num_visits1: UserDefinedFunction = udf((input: Seq[Double], M: Int, T: Int) => {
+    val gamma = new DenseMatrix(M, T, input.toArray)
+    gamma(::, 1).toArray
+  })
+
+  val udf_exp_num_emit: UserDefinedFunction = udf((input: Seq[Double], M: Int, k: Int, T: Int, obsin: Seq[Int]) => {
+    val gamma = new DenseMatrix(M, T, input.toArray)
+    var exp_num_emit = DenseMatrix.ones[Double](M, k)
+    val obs = obsin.toArray
+    if (T < k) {
+      (0 until T).foreach(t => {
+        exp_num_emit(::, obs(t)) := exp_num_emit(::, obs(t)) + gamma(::, t)
+      })
+    } else {
+      (0 until k).foreach(o => {
+        val ndx = obs.zipWithIndex.filter(_._1 == o).map(_._2)
+        if (ndx.length > 0) {
+          val cont = DenseVector.zeros[Double](M)
+          ndx.foreach(i => cont := cont + gamma(::, i))
+          exp_num_emit(::, o) := exp_num_emit(::, o) + cont
+        }
+      })
+    }
+    exp_num_emit.toArray
+  })
 
   val udf_multinomialprob: UserDefinedFunction = udf((obs: Seq[Int], M: Int, k: Int, T: Int, B: Seq[Double]) => {
     val funB: DenseMatrix[Double] = new DenseMatrix(M, k, B.toArray)
