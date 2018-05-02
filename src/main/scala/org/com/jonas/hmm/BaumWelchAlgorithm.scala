@@ -33,38 +33,36 @@ object BaumWelchAlgorithm {
 
         val newvalues = obstrained.repartition(numPartitions)
           .withColumn("obslik", udf_multinomialprob(col("obs"), col("M"), col("k"), col("T"), col("B")))
+          .drop("B")
           .withColumn("fwdback", udf_fwdback(col("M"), col("T"), col("Pi"), col("A"), col("obslik")))
-//          .drop("Pi", "A", "B", "obslik")
+          .drop("Pi", "A", "obslik")
           .withColumn("gamma", udf_gamma(col("fwdback")))
           .withColumn("loglik", udf_loglik(col("fwdback")))
           .withColumn("xi_summed", udf_xi_summed(col("fwdback")))
           .drop("fwdback")
           .withColumn("exp_num_visits1", udf_exp_num_visits1(col("gamma"), col("M"), col("T")))
           .withColumn("exp_num_emit", udf_exp_num_emit(col("gamma"), col("M"), col("k"), col("T"), col("obs")))
-//          .drop("gamma", "obs")
-          .reduce((row1, row2) => {
-          Row(
-            row1.get(0),
-            row1.get(1),
-            row1.get(2),
-            row1.get(3),
-            row1.get(4),
-            row1.get(5),
-            row1.get(6),
-            row1.get(7),
-            row1.get(8),
-            row1.get(9),
-            row1.get(10),
-            row1.getAs[Double](11) + row2.getAs[Double](11),
-            (row1.getAs[Seq[Double]](12), row2.getAs[Seq[Double]](12)).zipped.map(_ + _),
-            (row1.getAs[Seq[Double]](13), row2.getAs[Seq[Double]](13)).zipped.map(_ + _),
-            (row1.getAs[Seq[Double]](14), row2.getAs[Seq[Double]](14)).zipped.map(_ + _))
+          .drop("M", "k", "T", "gamma", "obs")
+          .rdd
+          .treeReduce((row1, row2) => {
+            row1
+//            Row(
+//              row1.get(0),
+//              row1.get(1),
+//              row1.get(2),
+//              row1.get(3)
+//            )
+            //            Row(
+            //            row1.getAs[Double](0) + row2.getAs[Double](0),
+            //            (row1.getAs[Seq[Double]](1), row2.getAs[Seq[Double]](1)).zipped.map(_ + _),
+            //            (row1.getAs[Seq[Double]](2), row2.getAs[Seq[Double]](2)).zipped.map(_ + _),
+            //            (row1.getAs[Seq[Double]](3), row2.getAs[Seq[Double]](3)).zipped.map(_ + _))
           })
-
-        val loglik = newvalues.getAs[Double](11)
-        prior = normalize(new DenseVector(newvalues.getAs[Seq[Double]](13).toArray), 1.0)
-        transmat = Utils.mkstochastic(new DenseMatrix(M, M, newvalues.getAs[Seq[Double]](12).toArray))
-        obsmat = Utils.mkstochastic(new DenseMatrix(M, k, newvalues.getAs[Seq[Double]](14).toArray))
+/*
+        val loglik = newvalues.getAs[Double](0)
+        prior = normalize(new DenseVector(newvalues.getAs[Seq[Double]](2).toArray), 1.0)
+        transmat = Utils.mkstochastic(new DenseMatrix(M, M, newvalues.getAs[Seq[Double]](1).toArray))
+        obsmat = Utils.mkstochastic(new DenseMatrix(M, k, newvalues.getAs[Seq[Double]](3).toArray))
 
         if (Utils.emconverged(loglik, antloglik, epsilon)) break
         antloglik = loglik
@@ -78,9 +76,9 @@ object BaumWelchAlgorithm {
           .withColumn("B", lit(obsmat.toArray))
           .withColumn("obs", udf_toarray(col("str_obs")))
           .withColumn("T", udf_obssize(col("obs")))
-
-//        println(newvalues.mkString("|"))
-//        newvalues.printSchema()
+*/
+                println(newvalues.mkString("|"))
+        //        newvalues.printSchema()
 
         /*
         val computehmm = new ComputeHMM
