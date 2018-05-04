@@ -26,12 +26,26 @@ object Train {
 
     val sparkSession = SparkSession.builder.appName("Spark-HMM").getOrCreate()
 
-    val sample: DataFrame = sparkSession.read.option("header", "true").csv(applicationProps.getProperty("path_sample"))
+    val sample1: DataFrame = sparkSession.read.option("header", "true").csv(applicationProps.getProperty("path_sample1"))
       .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
       .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
 
+    val sample2: DataFrame = sparkSession.read.option("header", "true").csv(applicationProps.getProperty("path_sample2"))
+      .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
+      .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
+
+    val sample3: DataFrame = sparkSession.read.option("header", "true").csv(applicationProps.getProperty("path_sample3"))
+      .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
+      .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
+
+    val sample4: DataFrame = sparkSession.read.option("header", "true").csv(applicationProps.getProperty("path_sample4"))
+      .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
+      .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
+
+    val finalSample = sample1.union(sample2).union(sample3).union(sample4)
+
     // BaumWelchAlgorithm(observations, M, k, initialPi, initialA, initialB, numPartitions, epsilon, maxIterations)
-    val result = hmm.BaumWelchAlgorithm.run(sample,
+    val result = hmm.BaumWelchAlgorithm.run1(finalSample,
       applicationProps.getProperty("value_M").toInt,
       applicationProps.getProperty("value_k").toInt,
       normalize(DenseVector.rand(applicationProps.getProperty("value_M").toInt), 1.0),
