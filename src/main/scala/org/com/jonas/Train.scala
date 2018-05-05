@@ -43,6 +43,9 @@ object Train {
       .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
 
     val finalSample = sample1.union(sample2).union(sample3).union(sample4)
+    val log = org.apache.log4j.LogManager.getRootLogger
+    log.info("\n")
+    log.info("Number of sequences: " + finalSample.count)
 
     // BaumWelchAlgorithm(observations, M, k, initialPi, initialA, initialB, numPartitions, epsilon, maxIterations)
     val result = hmm.BaumWelchAlgorithm.run1(finalSample,
