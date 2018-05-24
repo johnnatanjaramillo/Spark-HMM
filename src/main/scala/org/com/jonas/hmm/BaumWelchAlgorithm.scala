@@ -91,7 +91,8 @@ object BaumWelchAlgorithm {
 
     breakable {
       (0 until maxIterations).foreach(it => {
-        log.info("-----> Start Iteration: " + it)
+        log.info("-----------------------------------------------------------------------------------------")
+        log.info("Start Iteration: " + it)
         val computehmm = new ComputeHMM
         val newvalues = obstrained.repartition(numPartitions)
           .withColumn("obslik", udf_multinomialprob(col("obs"), col("M"), col("k"), col("T"), col("B")))
@@ -109,12 +110,16 @@ object BaumWelchAlgorithm {
             (row1.getAs[Seq[Double]](3), row2.getAs[Seq[Double]](3)).zipped.map(_ + _)))
 
         val loglik = newvalues.getAs[Double](0)
-        log.info("----------> LogLikehood Value: " + loglik)
+        log.info("LogLikehood Value: " + loglik)
         prior = normalize(new DenseVector(newvalues.getAs[Seq[Double]](2).toArray), 1.0)
         transmat = Utils.mkstochastic(new DenseMatrix(M, M, newvalues.getAs[Seq[Double]](1).toArray))
         obsmat = Utils.mkstochastic(new DenseMatrix(M, k, newvalues.getAs[Seq[Double]](3).toArray))
 
-        if (Utils.emconverged(loglik, antloglik, epsilon)) break
+        if (Utils.emconverged(loglik, antloglik, epsilon)){
+          log.info("End Iteration: " + it)
+          log.info("-----------------------------------------------------------------------------------------")
+          break
+        }
         antloglik = loglik
 
         obstrained.unpersist()
@@ -127,7 +132,8 @@ object BaumWelchAlgorithm {
           .withColumn("obs", udf_toarray(col("str_obs")))
           .withColumn("T", udf_obssize(col("obs")))
 
-        log.info("-----> End Iteration: " + it)
+        log.info("End Iteration: " + it)
+        log.info("-----------------------------------------------------------------------------------------")
       })
     }
     (prior, transmat, obsmat)
