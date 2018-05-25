@@ -46,33 +46,61 @@ object CrossValidation {
     val max_num_iterations = applicationProps.getProperty("max_num_iterations").toInt
     log.info("Value of max_num_iterations: " + max_num_iterations)
 
-    /**
-      * Make info Class 1
-      */
-    var sampleClass1 = sparkSession.read.csv(applicationProps.getProperty("path_sample_Class1"))
-      .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
-      .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
-      .select(col("workitem"), col("str_obs"), row_number().over(Window.orderBy(col("workitem"))).alias("rowId"))
+    var sampleClass1 = sparkSession.emptyDataFrame
+    var sampleClass0 = sparkSession.emptyDataFrame
+    var nClass1 = 0
+    var nClass0 = 0
 
-    val nClass1 = sampleClass1.count().toInt
-    log.info("Value of nClass1: " + nClass1)
-    sampleClass1 = set_folds(sampleClass1, nClass1, k_folds)
+    if(new java.io.File(applicationProps.getProperty("path_result")).exists){
+      sampleClass1 = sparkSession.read.csv(applicationProps.getProperty("path_sample_Class1_folds"))
+        .withColumnRenamed("_c0", "workitem")
+        .withColumnRenamed("_c1", "str_obs")
+        .withColumnRenamed("_c2", "rowId")
 
-    /**
-      * Make info Class 0
-      */
-    var sampleClass0 = sparkSession.read.csv(applicationProps.getProperty("path_sample_Class0"))
-      .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
-      .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
-      .select(col("workitem"), col("str_obs"), row_number().over(Window.orderBy(col("workitem"))).alias("rowId"))
+      nClass1 = sampleClass1.count().toInt
+      log.info("Value of nClass1: " + nClass1)
 
-    val nClass0 = sampleClass0.count().toInt
-    log.info("Value of nClass0: " + nClass0)
-    sampleClass0 = set_folds(sampleClass0, nClass0, k_folds)
+      sampleClass0 = sparkSession.read.csv(applicationProps.getProperty("path_sample_Class0_folds"))
+        .withColumnRenamed("_c0", "workitem")
+        .withColumnRenamed("_c1", "str_obs")
+        .withColumnRenamed("_c2", "rowId")
 
-    hmm.Utils.writeresult(applicationProps.getProperty("path_result"), "N,TP,FP,FN,TN,sensitivity,specificity,efficiency,error \n")
+      nClass0 = sampleClass0.count().toInt
+      log.info("Value of nClass0: " + nClass0)
 
-    (0 until k_folds).foreach(iter => {
+    }else{
+      /**
+        * Make info Class 1
+        */
+      sampleClass1 = sparkSession.read.csv(applicationProps.getProperty("path_sample_Class1"))
+        .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
+        .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
+        .select(col("workitem"), col("str_obs"), row_number().over(Window.orderBy(col("workitem"))).alias("rowId"))
+
+      nClass1 = sampleClass1.count().toInt
+      log.info("Value of nClass1: " + nClass1)
+      sampleClass1 = set_folds(sampleClass1, nClass1, k_folds)
+      sampleClass1.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class1_folds"))
+
+      /**
+        * Make info Class 0
+        */
+      sampleClass0 = sparkSession.read.csv(applicationProps.getProperty("path_sample_Class0"))
+        .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
+        .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
+        .select(col("workitem"), col("str_obs"), row_number().over(Window.orderBy(col("workitem"))).alias("rowId"))
+
+      nClass0 = sampleClass0.count().toInt
+      log.info("Value of nClass0: " + nClass0)
+      sampleClass0 = set_folds(sampleClass0, nClass0, k_folds)
+      sampleClass0.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class0_folds"))
+
+      hmm.Utils.writeresult(applicationProps.getProperty("path_result"), "N,TP,FP,FN,TN,sensitivity,specificity,efficiency,error\n")
+    }
+    sampleClass1.persist()
+    sampleClass0.persist()
+
+    (scala.io.Source.fromFile(applicationProps.getProperty("path_result")).getLines.size - 1 until k_folds).foreach(iter => {
       log.info("*****************************************************************************************")
       log.info("Fold number: " + iter)
       log.info("Getting data to train Class 1")
@@ -108,6 +136,8 @@ object CrossValidation {
             hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k, modelClass0._1, modelClass0._2, modelClass0._3)
               .withColumnRenamed("prob", "probMod0").as("valMod0"),
             col("valMod1.workitem") === col("valMod0.workitem"), "inner")
+      resultClass1.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class1_kfold" + iter))
+
 
       val resultClass0 =
         hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k, modelClass1._1, modelClass1._2, modelClass1._3)
@@ -116,6 +146,7 @@ object CrossValidation {
             hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k, modelClass0._1, modelClass0._2, modelClass0._3)
               .withColumnRenamed("prob", "probMod0").as("valMod0"),
             col("valMod1.workitem") === col("valMod0.workitem"), "inner")
+      resultClass0.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class0_kfold" + iter))
 
       /** N value */
       log.info("Compute N")
@@ -162,9 +193,16 @@ object CrossValidation {
       val error: Double = 1 - effic
       log.info("Value of error: " + error)
 
+      trainClass1.unpersist()
+      trainClass0.unpersist()
+      validClass1.unpersist()
+      validClass0.unpersist()
+      validClass1.unpersist()
+      validClass0.unpersist()
+
       log.info("*****************************************************************************************")
 
-      hmm.Utils.writeresult(applicationProps.getProperty("path_result"), N + "," + TP + "," + FP + "," + FN + "," + TN + "," + sensi + "," + speci + "," + effic + "," + error + " \n")
+      hmm.Utils.writeresult(applicationProps.getProperty("path_result"), N + "," + TP + "," + FP + "," + FN + "," + TN + "," + sensi + "," + speci + "," + effic + "," + error + "\n")
     })
     sparkSession.stop()
   }
