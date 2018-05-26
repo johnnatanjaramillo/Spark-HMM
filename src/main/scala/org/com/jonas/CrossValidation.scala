@@ -51,11 +51,12 @@ object CrossValidation {
     var nClass1 = 0
     var nClass0 = 0
 
-    if(new java.io.File(applicationProps.getProperty("path_result")).exists){
+    if (new java.io.File(applicationProps.getProperty("path_result")).exists) {
       sampleClass1 = sparkSession.read.csv(applicationProps.getProperty("path_sample_Class1_folds"))
         .withColumnRenamed("_c0", "workitem")
         .withColumnRenamed("_c1", "str_obs")
         .withColumnRenamed("_c2", "rowId")
+        .withColumnRenamed("_c3", "kfold")
 
       nClass1 = sampleClass1.count().toInt
       log.info("Value of nClass1: " + nClass1)
@@ -64,11 +65,12 @@ object CrossValidation {
         .withColumnRenamed("_c0", "workitem")
         .withColumnRenamed("_c1", "str_obs")
         .withColumnRenamed("_c2", "rowId")
+        .withColumnRenamed("_c3", "kfold")
 
       nClass0 = sampleClass0.count().toInt
       log.info("Value of nClass0: " + nClass0)
 
-    }else{
+    } else {
       /**
         * Make info Class 1
         */
@@ -119,6 +121,15 @@ object CrossValidation {
         hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
         hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
         number_partitions, value_epsilon, max_num_iterations)
+
+      hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class1_models"),
+        iter + ";" +
+          value_M + ";" +
+          value_k + ";" +
+          modelClass1._1.toArray.mkString(",") + ";" +
+          modelClass1._2.toArray.mkString(",") + ";" +
+          modelClass1._3.toArray.mkString(",") + "\n")
+
       log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
       log.info("Start training Class 0")
@@ -127,6 +138,15 @@ object CrossValidation {
         hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
         hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
         number_partitions, value_epsilon, max_num_iterations)
+
+      hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class0_models"),
+        iter + ";" +
+          value_M + ";" +
+          value_k + ";" +
+          modelClass0._1.toArray.mkString(",") + ";" +
+          modelClass0._2.toArray.mkString(",") + ";" +
+          modelClass0._3.toArray.mkString(",") + "\n")
+
       log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
       val resultClass1 =
@@ -136,7 +156,8 @@ object CrossValidation {
             hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k, modelClass0._1, modelClass0._2, modelClass0._3)
               .withColumnRenamed("prob", "probMod0").as("valMod0"),
             col("valMod1.workitem") === col("valMod0.workitem"), "inner")
-      resultClass1.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class1_kfold" + iter))
+      log.info("Saving result validation Class1")
+      resultClass1.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class1_kfold") + iter)
 
 
       val resultClass0 =
@@ -146,7 +167,8 @@ object CrossValidation {
             hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k, modelClass0._1, modelClass0._2, modelClass0._3)
               .withColumnRenamed("prob", "probMod0").as("valMod0"),
             col("valMod1.workitem") === col("valMod0.workitem"), "inner")
-      resultClass0.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class0_kfold" + iter))
+      log.info("Saving result validation Class0")
+      resultClass0.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class0_kfold") + iter)
 
       /** N value */
       log.info("Compute N")
