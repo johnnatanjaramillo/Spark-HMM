@@ -6,10 +6,11 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.DataFrame
 import org.apache.spark.sql.expressions.UserDefinedFunction
+import org.com.jonas.hmm
 
 object BaumWelchAlgorithm {
 
-  /*** function with aggregate function ****/
+  /** * function with aggregate function ****/
   def run(observations: DataFrame, M: Int, k: Int,
           initialPi: DenseVector[Double], initialA: DenseMatrix[Double], initialB: DenseMatrix[Double],
           numPartitions: Int = 1, epsilon: Double = 0.0001, maxIterations: Int = 10000):
@@ -67,10 +68,11 @@ object BaumWelchAlgorithm {
     (prior, transmat, obsmat)
   }
 
-  /*** function with reduce function ****/
+  /** * function with reduce function ****/
   def run1(observations: DataFrame, M: Int, k: Int,
            initialPi: DenseVector[Double], initialA: DenseMatrix[Double], initialB: DenseMatrix[Double],
-           numPartitions: Int = 1, epsilon: Double = 0.0001, maxIterations: Int = 10000):
+           numPartitions: Int = 1, epsilon: Double = 0.0001, maxIterations: Int = 10000,
+           kfold: Int, path_Class_baumwelch: String):
   (DenseVector[Double], DenseMatrix[Double], DenseMatrix[Double]) = {
 
     var prior = initialPi
@@ -79,21 +81,38 @@ object BaumWelchAlgorithm {
     var antloglik: Double = Double.NegativeInfinity
     val log = org.apache.log4j.LogManager.getRootLogger
 
+    var inInter = 0
+    if (new java.io.File(path_Class_baumwelch + kfold).exists) {
+
+      inInter = scala.io.Source.fromFile(path_Class_baumwelch + kfold).getLines.size - 1
+      val stringModel: List[String] = scala.io.Source.fromFile(path_Class_baumwelch + kfold).getLines().toList
+      val arraymodel = stringModel.last.split(";")
+      prior = new DenseVector(arraymodel(3).split(",").map(_.toDouble))
+      transmat = new DenseMatrix(M, M, arraymodel(4).split(",").map(_.toDouble))
+      obsmat = new DenseMatrix(M, k, arraymodel(5).split(",").map(_.toDouble))
+      antloglik = arraymodel(6).toDouble
+
+    } else {
+
+      hmm.Utils.writeresult(path_Class_baumwelch + kfold, "kfold,iteration,M,k,Pi,A,B,loglik\n")
+
+    }
+
     observations.persist()
     var obstrained = observations
       .withColumn("M", lit(M))
       .withColumn("k", lit(k))
-      .withColumn("Pi", lit(initialPi.toArray))
-      .withColumn("A", lit(initialA.toArray))
-      .withColumn("B", lit(initialB.toArray))
+      .withColumn("Pi", lit(prior.toArray))
+      .withColumn("A", lit(transmat.toArray))
+      .withColumn("B", lit(obsmat.toArray))
       .withColumn("obs", udf_toarray(col("str_obs")))
       .withColumn("T", udf_obssize(col("obs")))
 
     breakable {
-      (0 until maxIterations).foreach(it => {
+      (inInter until maxIterations).foreach(it => {
         log.info("-----------------------------------------------------------------------------------------")
         log.info("Start Iteration: " + it)
-        val computehmm = new ComputeHMM
+
         val newvalues = obstrained.repartition(numPartitions)
           .withColumn("obslik", udf_multinomialprob(col("obs"), col("M"), col("k"), col("T"), col("B")))
           .withColumn("fwdback", udf_fwdback(col("M"), col("T"), col("Pi"), col("A"), col("obslik")))
@@ -104,18 +123,29 @@ object BaumWelchAlgorithm {
           .withColumn("exp_num_emit", udf_exp_num_emit(col("gamma"), col("M"), col("k"), col("T"), col("obs")))
           .drop("workitem", "str_obs", "M", "k", "Pi", "A", "B", "obs", "T", "obslik", "fwdback", "gamma")
           .reduce((row1, row2) =>
-          Row(row1.getAs[Double](0) + row2.getAs[Double](0),
-            (row1.getAs[Seq[Double]](1), row2.getAs[Seq[Double]](1)).zipped.map(_ + _),
-            (row1.getAs[Seq[Double]](2), row2.getAs[Seq[Double]](2)).zipped.map(_ + _),
-            (row1.getAs[Seq[Double]](3), row2.getAs[Seq[Double]](3)).zipped.map(_ + _)))
+            Row(row1.getAs[Double](0) + row2.getAs[Double](0),
+              (row1.getAs[Seq[Double]](1), row2.getAs[Seq[Double]](1)).zipped.map(_ + _),
+              (row1.getAs[Seq[Double]](2), row2.getAs[Seq[Double]](2)).zipped.map(_ + _),
+              (row1.getAs[Seq[Double]](3), row2.getAs[Seq[Double]](3)).zipped.map(_ + _)))
 
         val loglik = newvalues.getAs[Double](0)
         log.info("LogLikehood Value: " + loglik)
+
         prior = normalize(new DenseVector(newvalues.getAs[Seq[Double]](2).toArray), 1.0)
         transmat = Utils.mkstochastic(new DenseMatrix(M, M, newvalues.getAs[Seq[Double]](1).toArray))
         obsmat = Utils.mkstochastic(new DenseMatrix(M, k, newvalues.getAs[Seq[Double]](3).toArray))
 
-        if (Utils.emconverged(loglik, antloglik, epsilon)){
+        hmm.Utils.writeresult(path_Class_baumwelch + kfold,
+          kfold + ";" +
+            it + ";" +
+            M + ";" +
+            k + ";" +
+            prior.toArray.mkString(",") + ";" +
+            transmat.toArray.mkString(",") + ";" +
+            obsmat.toArray.mkString(",") + ";" +
+            loglik + "\n")
+
+        if (Utils.emconverged(loglik, antloglik, epsilon)) {
           log.info("End Iteration: " + it)
           log.info("-----------------------------------------------------------------------------------------")
           break
@@ -155,25 +185,25 @@ object BaumWelchAlgorithm {
       .drop("str_obs", "M", "k", "Pi", "A", "B", "obs", "T", "obslik")
   }
 
-  /*** udf functions ****/
+  /** * udf functions ****/
   val udf_toarray: UserDefinedFunction = udf((s: String) => s.split(";").map(_.toInt))
   val udf_obssize: UserDefinedFunction = udf((s: Seq[Int]) => s.length)
 
-  /*** udf_multinomialprob ****/
+  /** * udf_multinomialprob ****/
   val udf_multinomialprob: UserDefinedFunction = udf((obs: Seq[Int], M: Int, k: Int, T: Int, B: Seq[Double]) => {
     val funB: DenseMatrix[Double] = new DenseMatrix(M, k, B.toArray)
-    val output: DenseMatrix[Double] = DenseMatrix.tabulate(M, T){case(m, t) => funB(m, obs(t))}
+    val output: DenseMatrix[Double] = DenseMatrix.tabulate(M, T) { case (m, t) => funB(m, obs(t)) }
     //val output: DenseMatrix[Double] = DenseMatrix.zeros[Double](M, T)
     //(0 until T).foreach(t => output(::, t) := funB(::, obs(t)))
     output.toArray
   })
 
-  /*** udf_multinomialprob "optimized" ****/
+  /** * udf_multinomialprob "optimized" ****/
   val udf_multinomialprob2: UserDefinedFunction = udf((obs: Seq[Int], M: Int, k: Int, T: Int, B: Seq[Double]) => {
     val output = Array.empty[Double]
     (0 until T).foreach(j => {
       val Mj = M * j
-      (0 until M).foreach(i => output :+ B(Mj  + i ))
+      (0 until M).foreach(i => output :+ B(Mj + i))
     })
     output
   })
@@ -214,20 +244,20 @@ object BaumWelchAlgorithm {
   val udf_xi_summed: UserDefinedFunction = udf((input: Row) => input.get(2).asInstanceOf[Seq[Double]])
   val udf_xi_summed_str: UserDefinedFunction = udf((input: Row) => input.get(2).asInstanceOf[Seq[Double]].mkString(","))
 
-  /*** udf_exp_num_visits1 ****/
+  /** * udf_exp_num_visits1 ****/
   val udf_exp_num_visits1: UserDefinedFunction = udf((input: Seq[Double], M: Int, T: Int) => {
     val gamma = new DenseMatrix(M, T, input.toArray)
     gamma(::, 1).toArray
   })
 
-  /*** udf_exp_num_visits1 "optimized" ****/
+  /** * udf_exp_num_visits1 "optimized" ****/
   val udf_exp_num_visits12: UserDefinedFunction = udf((input: Seq[Double], M: Int, T: Int) => {
     val output = Array.empty[Double]
     (0 until M).foreach(i => output :+ input(i))
     output
   })
 
-  /*** udf_exp_num_emit ****/
+  /** * udf_exp_num_emit ****/
   val udf_exp_num_emit: UserDefinedFunction = udf((input: Seq[Double], M: Int, k: Int, T: Int, obsin: Seq[Int]) => {
     val gamma = new DenseMatrix(M, T, input.toArray)
     var exp_num_emit = DenseMatrix.ones[Double](M, k)
@@ -249,14 +279,14 @@ object BaumWelchAlgorithm {
     exp_num_emit.toArray
   })
 
-  /*** udf_exp_num_emit "optimized" ****/
+  /** * udf_exp_num_emit "optimized" ****/
   val udf_exp_num_emit2: UserDefinedFunction = udf((input: Seq[Double], M: Int, k: Int, T: Int, obsin: Seq[Int]) => {
     val exp_num_emit = Array.fill[Double](M * k)(1.0)
     if (T < k) {
       (0 until T).foreach(t => {
         val Mo = M * obsin(t)
         val Mt = M * t
-        (0 until M).foreach(i => exp_num_emit(Mo + i) =  exp_num_emit(Mo + i) + input(Mt + i) )
+        (0 until M).foreach(i => exp_num_emit(Mo + i) = exp_num_emit(Mo + i) + input(Mt + i))
       })
     } else {
       (0 until k).foreach(o => {
@@ -265,7 +295,7 @@ object BaumWelchAlgorithm {
           val cont = Array.fill[Double](M)(0.0)
           ndx.foreach(i => {
             val Mi = M * i
-            (0 until M).foreach(m => cont(m) = cont(m) + input(Mi  + m ))
+            (0 until M).foreach(m => cont(m) = cont(m) + input(Mi + m))
           })
           val Mo = M * o
           (0 until M).foreach(m => exp_num_emit(Mo + m) = exp_num_emit(Mo + m) + cont(m))
@@ -275,7 +305,7 @@ object BaumWelchAlgorithm {
     exp_num_emit
   })
 
-  /*** Por optimizar ****/
+  /** * Por optimizar ****/
   val udf_fwd: UserDefinedFunction = udf((M: Int, T: Int, Pi: Seq[Double], A: Seq[Double], obslik: Seq[Double]) => {
     val funPi: DenseVector[Double] = new DenseVector(Pi.toArray)
     val funA = new DenseMatrix(M, M, A.toArray)
