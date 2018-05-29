@@ -102,8 +102,8 @@ object CrossValidation {
       sampleClass0.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class0_folds"))
 
       hmm.Utils.writeresult(applicationProps.getProperty("path_result"), "N,TP,FP,FN,TN,sensitivity,specificity,efficiency,error\n")
-      hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class1_models"), "kfold,M,k,Pi,A,B\n")
-      hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class0_models"), "kfold,M,k,Pi,A,B\n")
+      hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class1_models"), "kfold;M;k;Pi;A;B\n")
+      hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class0_models"), "kfold;M;k;Pi;A;B\n")
     }
     sampleClass1.persist()
     sampleClass0.persist()

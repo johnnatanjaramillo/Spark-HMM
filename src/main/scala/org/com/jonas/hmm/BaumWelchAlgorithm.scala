@@ -87,14 +87,14 @@ object BaumWelchAlgorithm {
       inInter = scala.io.Source.fromFile(path_Class_baumwelch + kfold).getLines.size - 1
       val stringModel: List[String] = scala.io.Source.fromFile(path_Class_baumwelch + kfold).getLines().toList
       val arraymodel = stringModel.last.split(";")
-      prior = new DenseVector(arraymodel(3).split(",").map(_.toDouble))
-      transmat = new DenseMatrix(M, M, arraymodel(4).split(",").map(_.toDouble))
-      obsmat = new DenseMatrix(M, k, arraymodel(5).split(",").map(_.toDouble))
-      antloglik = arraymodel(6).toDouble
+      prior = new DenseVector(arraymodel(4).split(",").map(_.toDouble))
+      transmat = new DenseMatrix(M, M, arraymodel(5).split(",").map(_.toDouble))
+      obsmat = new DenseMatrix(M, k, arraymodel(6).split(",").map(_.toDouble))
+      antloglik = arraymodel(7).toDouble
 
     } else {
 
-      hmm.Utils.writeresult(path_Class_baumwelch + kfold, "kfold,iteration,M,k,Pi,A,B,loglik\n")
+      hmm.Utils.writeresult(path_Class_baumwelch + kfold, "kfold;iteration;M;k;Pi;A;B;loglik\n")
 
     }
 
