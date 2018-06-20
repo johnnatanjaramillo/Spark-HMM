@@ -109,7 +109,6 @@ object CrossValidation {
     sampleClass0.persist()
 
     (inInter until k_folds).foreach(inter => {
-
       log.info("*****************************************************************************************")
       log.info("Fold number: " + inter)
       log.info("Getting data to train Class 1")
