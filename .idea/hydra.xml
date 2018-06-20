@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="HydraSettings">
-    <option name="hydraStorePath" value="C:\Users\jjaramillo\IdeaProjects\Spark-HMM\.hydra\idea" />
-    <option name="noOfCores" value="2" />
-    <option name="projectRoot" value="C:\Users\jjaramillo\IdeaProjects\Spark-HMM" />
+    <option name="hydraStorePath" value="C:\Users\johnnatan.jaramillo\IdeaProjects\Spark-HMM\.hydra\idea" />
+    <option name="noOfCores" value="4" />
+    <option name="projectRoot" value="C:\Users\johnnatan.jaramillo\IdeaProjects\Spark-HMM" />
     <option name="sourcePartitioner" value="auto" />
   </component>
 </project>
