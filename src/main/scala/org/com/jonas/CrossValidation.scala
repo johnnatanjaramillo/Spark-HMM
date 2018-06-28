@@ -59,7 +59,6 @@ object CrossValidation {
         .withColumnRenamed("_c1", "str_obs")
         .withColumnRenamed("_c2", "rowId")
         .withColumnRenamed("_c3", "kfold")
-
       nClass1 = sampleClass1.count().toInt
       log.info("Value of nClass1: " + nClass1)
 
@@ -68,12 +67,10 @@ object CrossValidation {
         .withColumnRenamed("_c1", "str_obs")
         .withColumnRenamed("_c2", "rowId")
         .withColumnRenamed("_c3", "kfold")
-
       nClass0 = sampleClass0.count().toInt
       log.info("Value of nClass0: " + nClass0)
 
       inInter = scala.io.Source.fromFile(applicationProps.getProperty("path_result")).getLines.size - 1
-
     } else {
       /**
         * Make info Class 1
@@ -82,7 +79,6 @@ object CrossValidation {
         .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
         .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
         .select(col("workitem"), col("str_obs"), row_number().over(Window.orderBy(col("workitem"))).alias("rowId"))
-
       nClass1 = sampleClass1.count().toInt
       log.info("Value of nClass1: " + nClass1)
       sampleClass1 = set_folds(sampleClass1, nClass1, k_folds)
@@ -95,7 +91,6 @@ object CrossValidation {
         .sample(withReplacement = false, applicationProps.getProperty("size_sample").toDouble)
         .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
         .select(col("workitem"), col("str_obs"), row_number().over(Window.orderBy(col("workitem"))).alias("rowId"))
-
       nClass0 = sampleClass0.count().toInt
       log.info("Value of nClass0: " + nClass0)
       sampleClass0 = set_folds(sampleClass0, nClass0, k_folds)
@@ -105,6 +100,7 @@ object CrossValidation {
       hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class1_models"), "kfold;M;k;Pi;A;B\n")
       hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class0_models"), "kfold;M;k;Pi;A;B\n")
     }
+
     sampleClass1.persist()
     sampleClass0.persist()
 
@@ -125,16 +121,13 @@ object CrossValidation {
       var modelClass0 = (Array.empty[Double], Array.empty[Double], Array.empty[Double])
 
       if (scala.io.Source.fromFile(applicationProps.getProperty("path_result_Class1_models")).getLines.size == inter + 2) {
-
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         log.info("Start Load Model Class 1")
         val stringModel: List[String] = scala.io.Source.fromFile(applicationProps.getProperty("path_result_Class1_models")).getLines().toList
         val arraymodel = stringModel.last.split(";")
         modelClass1 = (arraymodel(3).split(",").map(_.toDouble), arraymodel(4).split(",").map(_.toDouble), arraymodel(5).split(",").map(_.toDouble))
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
       } else {
-
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         log.info("Start training Class 1")
         val tmpModelClass1 = hmm.BaumWelchAlgorithm.run1(trainClass1, value_M, value_k,
@@ -143,9 +136,7 @@ object CrossValidation {
           hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
           number_partitions, value_epsilon, max_num_iterations,
           inter, applicationProps.getProperty("path_result_Class1_models_baumwelch"))
-
         modelClass1 = (tmpModelClass1._1.toArray, tmpModelClass1._2.toArray, tmpModelClass1._3.toArray)
-
         hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class1_models"),
           inter + ";" +
             value_M + ";" +
@@ -154,20 +145,16 @@ object CrossValidation {
             modelClass1._2.mkString(",") + ";" +
             modelClass1._3.mkString(",") + "\n")
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
       }
 
       if (scala.io.Source.fromFile(applicationProps.getProperty("path_result_Class0_models")).getLines.size == inter + 2) {
-
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         log.info("Start Load Model Class 0")
         val stringModel: List[String] = scala.io.Source.fromFile(applicationProps.getProperty("path_result_Class0_models")).getLines().toList
         val arraymodel = stringModel.last.split(";")
         modelClass0 = (arraymodel(3).split(",").map(_.toDouble), arraymodel(4).split(",").map(_.toDouble), arraymodel(5).split(",").map(_.toDouble))
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
       } else {
-
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
         log.info("Start training Class 0")
         val tmpModelClass0 = hmm.BaumWelchAlgorithm.run1(trainClass0, value_M, value_k,
@@ -176,9 +163,7 @@ object CrossValidation {
           hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
           number_partitions, value_epsilon, max_num_iterations,
           inter, applicationProps.getProperty("path_result_Class0_models_baumwelch"))
-
         modelClass0 = (tmpModelClass0._1.toArray, tmpModelClass0._2.toArray, tmpModelClass0._3.toArray)
-
         hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class0_models"),
           inter + ";" +
             value_M + ";" +
@@ -187,7 +172,6 @@ object CrossValidation {
             modelClass0._2.mkString(",") + ";" +
             modelClass0._3.mkString(",") + "\n")
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
       }
 
       val resultClass1 =
@@ -269,7 +253,6 @@ object CrossValidation {
       validClass0.unpersist()
 
       log.info("*****************************************************************************************")
-
       hmm.Utils.writeresult(applicationProps.getProperty("path_result"), N + "," + TP + "," + FP + "," + FN + "," + TN + "," + sensi + "," + speci + "," + effic + "," + error + "\n")
     })
     sparkSession.stop()
@@ -279,9 +262,7 @@ object CrossValidation {
     val randomList = scala.util.Random.shuffle((0 until n).toList)
     val indexList = Array.fill[Int](n)(0)
     (1 until kfolds).foreach(i => (i until n by kfolds).foreach(j => indexList(randomList(j)) = i))
-
     val udf_setfold: UserDefinedFunction = udf((rowId: Int) => indexList(rowId - 1))
     sample.withColumn("kfold", udf_setfold(col("rowId")))
   }
-
 }

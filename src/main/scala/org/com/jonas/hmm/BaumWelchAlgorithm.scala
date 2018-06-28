@@ -33,7 +33,6 @@ object BaumWelchAlgorithm {
 
     breakable {
       (0 until maxIterations).foreach(_ => {
-
         val computehmm = new ComputeHMM
         val newvalues = obstrained.repartition(numPartitions)
           .withColumn("obslik", udf_multinomialprob(col("obs"), col("M"), col("k"), col("T"), col("B")))
@@ -62,7 +61,6 @@ object BaumWelchAlgorithm {
           .withColumn("B", lit(obsmat.toArray))
           .withColumn("obs", udf_toarray(col("str_obs")))
           .withColumn("T", udf_obssize(col("obs")))
-
       })
     }
     (prior, transmat, obsmat)
@@ -80,10 +78,8 @@ object BaumWelchAlgorithm {
     var obsmat = initialB
     var antloglik: Double = Double.NegativeInfinity
     val log = org.apache.log4j.LogManager.getRootLogger
-
     var inInter = 0
     if (new java.io.File(path_Class_baumwelch + kfold).exists) {
-
       inInter = scala.io.Source.fromFile(path_Class_baumwelch + kfold).getLines.size - 1
       val stringModel: List[String] = scala.io.Source.fromFile(path_Class_baumwelch + kfold).getLines().toList
       val arraymodel = stringModel.last.split(";")
@@ -91,12 +87,7 @@ object BaumWelchAlgorithm {
       transmat = new DenseMatrix(M, M, arraymodel(5).split(",").map(_.toDouble))
       obsmat = new DenseMatrix(M, k, arraymodel(6).split(",").map(_.toDouble))
       antloglik = arraymodel(7).toDouble
-
-    } else {
-
-      hmm.Utils.writeresult(path_Class_baumwelch + kfold, "kfold;iteration;M;k;Pi;A;B;loglik\n")
-
-    }
+    } else hmm.Utils.writeresult(path_Class_baumwelch + kfold, "kfold;iteration;M;k;Pi;A;B;loglik\n")
 
     observations.persist()
     var obstrained = observations
@@ -112,7 +103,6 @@ object BaumWelchAlgorithm {
       (inInter until maxIterations).foreach(it => {
         log.info("-----------------------------------------------------------------------------------------")
         log.info("Start Iteration: " + it)
-
         val newvalues = obstrained.repartition(numPartitions)
           .withColumn("obslik", udf_multinomialprob(col("obs"), col("M"), col("k"), col("T"), col("B")))
           .withColumn("fwdback", udf_fwdback(col("M"), col("T"), col("Pi"), col("A"), col("obslik")))
@@ -130,11 +120,9 @@ object BaumWelchAlgorithm {
 
         val loglik = newvalues.getAs[Double](0)
         log.info("LogLikehood Value: " + loglik)
-
         prior = normalize(new DenseVector(newvalues.getAs[Seq[Double]](2).toArray), 1.0)
         transmat = Utils.mkstochastic(new DenseMatrix(M, M, newvalues.getAs[Seq[Double]](1).toArray))
         obsmat = Utils.mkstochastic(new DenseMatrix(M, k, newvalues.getAs[Seq[Double]](3).toArray))
-
         hmm.Utils.writeresult(path_Class_baumwelch + kfold,
           kfold + ";" +
             it + ";" +
@@ -161,7 +149,6 @@ object BaumWelchAlgorithm {
           .withColumn("B", lit(obsmat.toArray))
           .withColumn("obs", udf_toarray(col("str_obs")))
           .withColumn("T", udf_obssize(col("obs")))
-
         log.info("End Iteration: " + it)
         log.info("-----------------------------------------------------------------------------------------")
       })
@@ -221,7 +208,7 @@ object BaumWelchAlgorithm {
     (1 until T).foreach(t => alpha(::, t) := Utils.normalise((funA.t * alpha(::, t - 1)) :* funObslik(::, t), scale, t))
 
     var loglik: Double = 0.0
-    if(scale.findAll(i => i == 0).isEmpty) loglik = Double.NegativeInfinity else loglik = sum(scale.map(Math.log))
+    if (scale.findAll(i => i == 0).isEmpty) loglik = Double.NegativeInfinity else loglik = sum(scale.map(Math.log))
     //Modificación validar si funciona
     //val loglik: Double = sum(scale.map(Math.log))
 
@@ -266,11 +253,8 @@ object BaumWelchAlgorithm {
     val gamma = new DenseMatrix(M, T, input.toArray)
     var exp_num_emit = DenseMatrix.ones[Double](M, k)
     val obs = obsin.toArray
-    if (T < k) {
-      (0 until T).foreach(t => {
-        exp_num_emit(::, obs(t)) := exp_num_emit(::, obs(t)) + gamma(::, t)
-      })
-    } else {
+    if (T < k) (0 until T).foreach(t => exp_num_emit(::, obs(t)) := exp_num_emit(::, obs(t)) + gamma(::, t))
+    else {
       (0 until k).foreach(o => {
         val ndx = obs.zipWithIndex.filter(_._1 == o).map(_._2)
         if (ndx.length > 0) {
@@ -321,5 +305,4 @@ object BaumWelchAlgorithm {
     (1 until T).foreach(t => alpha(::, t) := (funA.t * alpha(::, t - 1)) :* funObslik(::, t))
     sum(alpha(::, T - 1))
   })
-
 }
