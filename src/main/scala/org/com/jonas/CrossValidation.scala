@@ -96,7 +96,7 @@ object CrossValidation {
       sampleClass0 = set_folds(sampleClass0, nClass0, k_folds)
       sampleClass0.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class0_folds"))
 
-      hmm.Utils.writeresult(applicationProps.getProperty("path_result"), "N,TP,FP,FN,TN,sensitivity,specificity,efficiency,error\n")
+      hmm.Utils.writeresult(applicationProps.getProperty("path_result"), "N,TP,FP,FN,TN,sensitivity,specificity,accuracy,error\n")
       hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class1_models"), "kfold;M;k;Pi;A;B\n")
       hmm.Utils.writeresult(applicationProps.getProperty("path_result_Class0_models"), "kfold;M;k;Pi;A;B\n")
     }
@@ -132,7 +132,7 @@ object CrossValidation {
         log.info("Start training Class 1")
         val tmpModelClass1 = hmm.BaumWelchAlgorithm.run1(trainClass1, value_M, value_k,
           normalize(DenseVector.rand(value_M), 1.0),
-          hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
+          hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_M)),
           hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
           number_partitions, value_epsilon, max_num_iterations,
           inter, applicationProps.getProperty("path_result_Class1_models_baumwelch"))
@@ -159,7 +159,7 @@ object CrossValidation {
         log.info("Start training Class 0")
         val tmpModelClass0 = hmm.BaumWelchAlgorithm.run1(trainClass0, value_M, value_k,
           normalize(DenseVector.rand(value_M), 1.0),
-          hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
+          hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_M)),
           hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
           number_partitions, value_epsilon, max_num_iterations,
           inter, applicationProps.getProperty("path_result_Class0_models_baumwelch"))
@@ -186,6 +186,8 @@ object CrossValidation {
           .select(col("valMod1.workitem").as("workitem"), col("probMod1"), col("probMod0"))
       log.info("Saving result validation Class1")
       resultClass1.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class1_kfold") + inter)
+      log.info("Value of validClass1: " + validClass1.count())
+      log.info("Value of resultClass1: " + resultClass1.count())
 
       val resultClass0 =
         hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k,
@@ -199,10 +201,12 @@ object CrossValidation {
           .select(col("valMod1.workitem").as("workitem"), col("probMod1"), col("probMod0"))
       log.info("Saving result validation Class0")
       resultClass0.write.format("com.databricks.spark.csv").save(applicationProps.getProperty("path_sample_Class0_kfold") + inter)
+      log.info("Value of validClass0: " + validClass0.count())
+      log.info("Value of resultClass0: " + resultClass0.count())
 
       /** N value */
       log.info("Compute N")
-      val N: Double = validClass1.count + validClass0.count
+      val N: Double = resultClass1.count + resultClass0.count
       log.info("Value of N: " + N)
 
       /** True Positives */
@@ -235,10 +239,10 @@ object CrossValidation {
       val speci: Double = TN / (TN + FP)
       log.info("Value of speci: " + speci)
 
-      /** efficiency */
-      log.info("Compute Efficiency")
-      val effic: Double = (TP + TN) / N
-      log.info("Value of effic: " + effic)
+      /** accuracy */
+      log.info("Compute Accuracy")
+      val effic: Double = (TP + TN) / TP + FP + FN + TN
+      log.info("Value of Accuracy: " + effic)
 
       /** error */
       log.info("Compute Error")
