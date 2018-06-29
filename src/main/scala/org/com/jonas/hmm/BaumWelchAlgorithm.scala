@@ -78,6 +78,7 @@ object BaumWelchAlgorithm {
     var obsmat = initialB
     var antloglik: Double = Double.NegativeInfinity
     val log = org.apache.log4j.LogManager.getRootLogger
+
     var inInter = 0
     if (new java.io.File(path_Class_baumwelch + kfold).exists) {
       inInter = scala.io.Source.fromFile(path_Class_baumwelch + kfold).getLines.size - 1
@@ -251,7 +252,7 @@ object BaumWelchAlgorithm {
   /** * udf_exp_num_emit ****/
   val udf_exp_num_emit: UserDefinedFunction = udf((input: Seq[Double], M: Int, k: Int, T: Int, obsin: Seq[Int]) => {
     val gamma = new DenseMatrix(M, T, input.toArray)
-    var exp_num_emit = DenseMatrix.ones[Double](M, k)
+    val exp_num_emit = DenseMatrix.ones[Double](M, k)
     val obs = obsin.toArray
     if (T < k) (0 until T).foreach(t => exp_num_emit(::, obs(t)) := exp_num_emit(::, obs(t)) + gamma(::, t))
     else {
