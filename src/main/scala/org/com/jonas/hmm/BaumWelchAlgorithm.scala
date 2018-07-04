@@ -208,10 +208,10 @@ object BaumWelchAlgorithm {
     alpha(::, 0) := Utils.normalise(funPi :* funObslik(::, 0), scale, 0)
     (1 until T).foreach(t => alpha(::, t) := Utils.normalise((funA.t * alpha(::, t - 1)) :* funObslik(::, t), scale, t))
 
-    var loglik: Double = 0.0
-    if (scale.findAll(i => i == 0).isEmpty) loglik = Double.NegativeInfinity else loglik = sum(scale.map(Math.log))
+    //var loglik: Double = 0.0
+    //if (scale.findAll(i => i == 0).isEmpty) loglik = Double.NegativeInfinity else loglik = sum(scale.map(Math.log))
     //Modificación validar si funciona
-    //val loglik: Double = sum(scale.map(Math.log))
+    val loglik: Double = sum(scale.map(Math.log))
 
     //Backwards
     val gamma: DenseMatrix[Double] = DenseMatrix.zeros[Double](M, T)
