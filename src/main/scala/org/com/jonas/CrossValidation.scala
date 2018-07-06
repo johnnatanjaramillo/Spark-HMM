@@ -241,7 +241,7 @@ object CrossValidation {
 
       /** accuracy */
       log.info("Compute Accuracy")
-      val effic: Double = (TP + TN) / TP + FP + FN + TN
+      val effic: Double = (TP + TN) / (TP + FP + FN + TN)
       log.info("Value of Accuracy: " + effic)
 
       /** error */

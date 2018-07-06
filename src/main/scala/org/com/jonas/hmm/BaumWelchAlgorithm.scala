@@ -209,7 +209,8 @@ object BaumWelchAlgorithm {
     (1 until T).foreach(t => alpha(::, t) := Utils.normalise((funA.t * alpha(::, t - 1)) :* funObslik(::, t), scale, t))
 
     //var loglik: Double = 0.0
-    //if (scale.findAll(i => i == 0).isEmpty) loglik = Double.NegativeInfinity else loglik = sum(scale.map(Math.log))
+    //if (scale.toArray.filter(i => i == 0).isEmpty) loglik = sum(scale.map(Math.log)) else loglik = Double.NegativeInfinity
+    //if (scale.findAll(i => i == 0).isEmpty) loglik = sum(scale.map(Math.log)) else loglik = Double.NegativeInfinity
     //Modificación validar si funciona
     val loglik: Double = sum(scale.map(Math.log))
 
