@@ -303,8 +303,10 @@ object BaumWelchAlgorithm {
 
     val alpha: DenseMatrix[Double] = DenseMatrix.zeros[Double](M, T)
     //Forwards
-    alpha(::, 0) := funPi :* funObslik(::, 0)
-    (1 until T).foreach(t => alpha(::, t) := (funA.t * alpha(::, t - 1)) :* funObslik(::, t))
+    //alpha(::, 0) := funPi :* funObslik(::, 0)
+    //(1 until T).foreach(t => alpha(::, t) := (funA.t * alpha(::, t - 1)) :* funObslik(::, t))
+    alpha(::, 0) := normalize(funPi :* funObslik(::, 0), 1.0)
+    (1 until T).foreach(t => alpha(::, t) := normalize((funA.t * alpha(::, t - 1)) :* funObslik(::, t), 1.0))
     sum(alpha(::, T - 1))
   })
 }
