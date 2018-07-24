@@ -161,6 +161,7 @@ object BaumWelchAlgorithm {
                initialPi: DenseVector[Double], initialA: DenseMatrix[Double], initialB: DenseMatrix[Double]):
   DataFrame = {
     observations
+        .repartition(8)
       .withColumn("M", lit(M))
       .withColumn("k", lit(k))
       .withColumn("Pi", lit(initialPi.toArray))
@@ -301,12 +302,26 @@ object BaumWelchAlgorithm {
     val funA = new DenseMatrix(M, M, A.toArray)
     val funObslik = new DenseMatrix(M, T, obslik.toArray)
 
-    val alpha: DenseMatrix[Double] = DenseMatrix.zeros[Double](M, T)
+    //val alpha: DenseMatrix[Double] = DenseMatrix.zeros[Double](M, T)
     //Forwards
     //alpha(::, 0) := funPi :* funObslik(::, 0)
     //(1 until T).foreach(t => alpha(::, t) := (funA.t * alpha(::, t - 1)) :* funObslik(::, t))
-    alpha(::, 0) := normalize(funPi :* funObslik(::, 0), 1.0)
-    (1 until T).foreach(t => alpha(::, t) := normalize((funA.t * alpha(::, t - 1)) :* funObslik(::, t), 1.0))
-    sum(alpha(::, T - 1))
+    //alpha(::, 0) := normalize(funPi :* funObslik(::, 0), 1.0)
+    //(1 until T).foreach(t => alpha(::, t) := normalize((funA.t * alpha(::, t - 1)) :* funObslik(::, t), 1.0))
+    //sum(alpha(::, T - 1))
+
+    val scale: DenseVector[Double] = DenseVector.ones[Double](T)
+    val alpha: DenseMatrix[Double] = DenseMatrix.zeros[Double](M, T)
+
+    //Forwards
+    alpha(::, 0) := Utils.normalise(funPi :* funObslik(::, 0), scale, 0)
+    (1 until T).foreach(t => alpha(::, t) := Utils.normalise((funA.t * alpha(::, t - 1)) :* funObslik(::, t), scale, t))
+
+    //var loglik: Double = 0.0
+    //if (scale.toArray.filter(i => i == 0).isEmpty) loglik = sum(scale.map(Math.log)) else loglik = Double.NegativeInfinity
+    //if (scale.findAll(i => i == 0).isEmpty) loglik = sum(scale.map(Math.log)) else loglik = Double.NegativeInfinity
+    //Modificación validar si funciona
+    val loglik: Double = sum(scale.map(Math.log))
+    loglik
   })
 }
