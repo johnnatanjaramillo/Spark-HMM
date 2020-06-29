@@ -102,11 +102,11 @@ object newMAtrix {
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
       val resultClass1 =
-        hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k, value_T,
+        hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k, value_T, number_partitions,
           new DenseVector(modelClass1._1), new DenseMatrix(value_M, value_M, modelClass1._2), new DenseMatrix(value_M, value_k, modelClass1._3))
           .withColumnRenamed("prob", "probMod1").as("valMod1")
           .join(
-            hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k, value_T,
+            hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k, value_T, number_partitions,
               new DenseVector(modelClass0._1), new DenseMatrix(value_M, value_M, modelClass0._2), new DenseMatrix(value_M, value_k, modelClass0._3))
               .withColumnRenamed("prob", "probMod0").as("valMod0"),
             col("valMod1.workitem") === col("valMod0.workitem"), "inner")
@@ -118,11 +118,11 @@ object newMAtrix {
       log.info("Value of resultClass1: " + resultClass1.count())
 
       val resultClass0 =
-        hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k, value_T,
+        hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k, value_T, number_partitions,
           new DenseVector(modelClass1._1), new DenseMatrix(value_M, value_M, modelClass1._2), new DenseMatrix(value_M, value_k, modelClass1._3))
           .withColumnRenamed("prob", "probMod1").as("valMod1")
           .join(
-            hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k, value_T,
+            hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k, value_T, number_partitions,
               new DenseVector(modelClass0._1), new DenseMatrix(value_M, value_M, modelClass0._2), new DenseMatrix(value_M, value_k, modelClass0._3))
               .withColumnRenamed("prob", "probMod0").as("valMod0"),
             col("valMod1.workitem") === col("valMod0.workitem"), "inner")

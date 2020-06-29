@@ -33,7 +33,7 @@ object Validate {
     val sample: DataFrame = sparkSession.read.csv(args(0))
       .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
 
-    val result = hmm.BaumWelchAlgorithm.validate(sample, M, k, T, Pi, A, B)
+    val result = hmm.BaumWelchAlgorithm.validate(sample, M, k, T, 8, Pi, A, B)
 
     result
       .select("workitem", "prob").coalesce(1)

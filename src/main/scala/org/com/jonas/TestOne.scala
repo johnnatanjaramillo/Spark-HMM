@@ -59,14 +59,14 @@ object TestOne {
       //.select(col("workitem"), col("str_obs"), row_number().over(Window.orderBy(col("udf_length"))).alias("rowId"))
       .where("udf_length == 67119").drop("udf_length")
 
-    val tmpModelClass1 = hmm.BaumWelchAlgorithm.run1(sampleClass, value_M, value_k, value_T,
+    /* val tmpModelClass1 = hmm.BaumWelchAlgorithm.run1(sampleClass, value_M, value_k, value_T,
       normalize(DenseVector.rand(value_M), 1.0),
       hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
       hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
       number_partitions, value_epsilon, max_num_iterations,
       0, applicationProps.getProperty("path_result_Class1_models_baumwelch"),
       applicationProps.getProperty("path_result_time_Class1"))
-
+*/
 
     println("FIN")
     sparkSession.stop()

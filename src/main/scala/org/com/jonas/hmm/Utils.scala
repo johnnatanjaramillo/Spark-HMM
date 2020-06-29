@@ -1,6 +1,6 @@
 package org.com.jonas.hmm
 
-import breeze.linalg.{DenseMatrix, DenseVector, Transpose, normalize, sum}
+import breeze.linalg.{DenseMatrix, DenseVector, normalize, sum}
 
 object Utils {
 

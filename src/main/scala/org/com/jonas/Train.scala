@@ -48,7 +48,7 @@ object Train {
     log.info("Number of sequences: " + finalSample.count)
 
     // BaumWelchAlgorithm(observations, M, k, initialPi, initialA, initialB, numPartitions, epsilon, maxIterations)
-    val result = hmm.BaumWelchAlgorithm.run(finalSample,
+    /* val result = hmm.BaumWelchAlgorithm.run(finalSample,
       applicationProps.getProperty("value_M").toInt,
       applicationProps.getProperty("value_k").toInt,
       applicationProps.getProperty("value_T").toInt,
@@ -66,6 +66,8 @@ object Train {
         result._1.toArray.mkString(",") + ";" +
         result._2.toArray.mkString(",") + ";" +
         result._3.toArray.mkString(","))
+
+     */
     sparkSession.stop()
 
   }
