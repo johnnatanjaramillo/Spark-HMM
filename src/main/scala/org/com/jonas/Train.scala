@@ -51,6 +51,7 @@ object Train {
     val result = hmm.BaumWelchAlgorithm.run(finalSample,
       applicationProps.getProperty("value_M").toInt,
       applicationProps.getProperty("value_k").toInt,
+      applicationProps.getProperty("value_T").toInt,
       normalize(DenseVector.rand(applicationProps.getProperty("value_M").toInt), 1.0),
       hmm.Utils.mkstochastic(DenseMatrix.rand(applicationProps.getProperty("value_M").toInt, applicationProps.getProperty("value_M").toInt)),
       hmm.Utils.mkstochastic(DenseMatrix.rand(applicationProps.getProperty("value_M").toInt, applicationProps.getProperty("value_k").toInt)),
@@ -61,6 +62,7 @@ object Train {
     hmm.Utils.writeresult(applicationProps.getProperty("path_result"),
         applicationProps.getProperty("value_M") + ";" +
         applicationProps.getProperty("value_k") + ";" +
+          applicationProps.getProperty("value_T") + ";" +
         result._1.toArray.mkString(",") + ";" +
         result._2.toArray.mkString(",") + ";" +
         result._3.toArray.mkString(","))

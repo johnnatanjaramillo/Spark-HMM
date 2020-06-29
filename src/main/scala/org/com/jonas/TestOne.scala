@@ -40,6 +40,8 @@ object TestOne {
     log.info("Value of value_M: " + value_M)
     val value_k = applicationProps.getProperty("value_k").toInt
     log.info("Value of value_k: " + value_k)
+    val value_T = applicationProps.getProperty("value_T").toInt
+    log.info("Value of value_T: " + value_T)
     val number_partitions = applicationProps.getProperty("number_partitions").toInt
     log.info("Value of number_partitions: " + number_partitions)
     val value_epsilon = applicationProps.getProperty("value_epsilon").toDouble
@@ -57,12 +59,13 @@ object TestOne {
       //.select(col("workitem"), col("str_obs"), row_number().over(Window.orderBy(col("udf_length"))).alias("rowId"))
       .where("udf_length == 67119").drop("udf_length")
 
-    val tmpModelClass1 = hmm.BaumWelchAlgorithm.run1(sampleClass, value_M, value_k,
+    val tmpModelClass1 = hmm.BaumWelchAlgorithm.run1(sampleClass, value_M, value_k, value_T,
       normalize(DenseVector.rand(value_M), 1.0),
       hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
       hmm.Utils.mkstochastic(DenseMatrix.rand(value_M, value_k)),
       number_partitions, value_epsilon, max_num_iterations,
-      0, applicationProps.getProperty("path_result_Class1_models_baumwelch"))
+      0, applicationProps.getProperty("path_result_Class1_models_baumwelch"),
+      applicationProps.getProperty("path_result_time_Class1"))
 
 
     println("FIN")

@@ -11,7 +11,7 @@ import org.com.jonas.hmm
 object BaumWelchAlgorithm {
 
   /** * function with aggregate function ****/
-  def run(observations: DataFrame, M: Int, k: Int,
+  def run(observations: DataFrame, M: Int, k: Int, T: Int,
           initialPi: DenseVector[Double], initialA: DenseMatrix[Double], initialB: DenseMatrix[Double],
           numPartitions: Int = 1, epsilon: Double = 0.0001, maxIterations: Int = 10000):
   (DenseVector[Double], DenseMatrix[Double], DenseMatrix[Double]) = {
@@ -28,8 +28,8 @@ object BaumWelchAlgorithm {
       .withColumn("Pi", lit(initialPi.toArray))
       .withColumn("A", lit(initialA.toArray))
       .withColumn("B", lit(initialB.toArray))
-      .withColumn("obs", udf_toarray(col("str_obs")))
-      .withColumn("T", udf_obssize(col("obs")))
+      .withColumn("obs", udf_toarray_length(col("str_obs"), lit(T)))
+      .withColumn("T", udf_obssize_length(col("obs"), lit(T)))
 
     breakable {
       (0 until maxIterations).foreach(_ => {
@@ -59,18 +59,18 @@ object BaumWelchAlgorithm {
           .withColumn("Pi", lit(prior.toArray))
           .withColumn("A", lit(transmat.toArray))
           .withColumn("B", lit(obsmat.toArray))
-          .withColumn("obs", udf_toarray(col("str_obs")))
-          .withColumn("T", udf_obssize(col("obs")))
+          .withColumn("obs", udf_toarray_length(col("str_obs"), lit(T)))
+          .withColumn("T", udf_obssize_length(col("obs"), lit(T)))
       })
     }
     (prior, transmat, obsmat)
   }
 
   /** * function with reduce function ****/
-  def run1(observations: DataFrame, M: Int, k: Int,
+  def run1(observations: DataFrame, M: Int, k: Int, T: Int,
            initialPi: DenseVector[Double], initialA: DenseMatrix[Double], initialB: DenseMatrix[Double],
            numPartitions: Int = 1, epsilon: Double = 0.0001, maxIterations: Int = 10000,
-           kfold: Int, path_Class_baumwelch: String):
+           kfold: Int, path_Class_baumwelch: String, path_result_time_Class: String):
   (DenseVector[Double], DenseMatrix[Double], DenseMatrix[Double]) = {
 
     var prior = initialPi
@@ -97,13 +97,14 @@ object BaumWelchAlgorithm {
       .withColumn("Pi", lit(prior.toArray))
       .withColumn("A", lit(transmat.toArray))
       .withColumn("B", lit(obsmat.toArray))
-      .withColumn("obs", udf_toarray(col("str_obs")))
-      .withColumn("T", udf_obssize(col("obs")))
+      .withColumn("obs", udf_toarray_length(col("str_obs"), lit(T)))
+      .withColumn("T", udf_obssize_length(col("obs"), lit(T)))
 
     breakable {
       (inInter until maxIterations).foreach(it => {
         log.info("-----------------------------------------------------------------------------------------")
         log.info("Start Iteration: " + it)
+        val initTime = java.time.LocalDateTime.now()
         val newvalues = obstrained.repartition(numPartitions)
           .withColumn("obslik", udf_multinomialprob(col("obs"), col("M"), col("k"), col("T"), col("B")))
           .withColumn("fwdback", udf_fwdback(col("M"), col("T"), col("Pi"), col("A"), col("obslik")))
@@ -136,7 +137,14 @@ object BaumWelchAlgorithm {
 
         if (Utils.emconverged(loglik, antloglik, epsilon)) {
           log.info("End Iteration: " + it)
+          val endTime = java.time.LocalDateTime.now()
+          log.info("Duration Iteration: " + java.time.Duration.between(initTime, endTime).toMillis )
+          hmm.Utils.writeresult(path_result_time_Class, it + ";" +
+            ((java.time.Duration.between(initTime, endTime).toMillis / 1000.0) / 60.0) + ";" +
+            (((java.time.Duration.between(initTime, endTime).toMillis / 1000.0) / 60.0) / 60.0) + ";" +
+            loglik + ";" + antloglik + ";" + epsilon + "\n")
           log.info("-----------------------------------------------------------------------------------------")
+
           break
         }
         antloglik = loglik
@@ -148,16 +156,22 @@ object BaumWelchAlgorithm {
           .withColumn("Pi", lit(prior.toArray))
           .withColumn("A", lit(transmat.toArray))
           .withColumn("B", lit(obsmat.toArray))
-          .withColumn("obs", udf_toarray(col("str_obs")))
-          .withColumn("T", udf_obssize(col("obs")))
+          .withColumn("obs", udf_toarray_length(col("str_obs"), lit(T)))
+          .withColumn("T", udf_obssize_length(col("obs"), lit(T)))
         log.info("End Iteration: " + it)
+        val endTime = java.time.LocalDateTime.now()
+        log.info("Duration Iteration: " + java.time.Duration.between(initTime, endTime).toMillis )
+        hmm.Utils.writeresult(path_result_time_Class, it + ";" +
+          ((java.time.Duration.between(initTime, endTime).toMillis / 1000.0) / 60.0) + ";" +
+          (((java.time.Duration.between(initTime, endTime).toMillis / 1000.0) / 60.0) / 60.0) + ";" +
+          loglik + ";" + antloglik + ";" + epsilon + "\n")
         log.info("-----------------------------------------------------------------------------------------")
       })
     }
     (prior, transmat, obsmat)
   }
 
-  def validate(observations: DataFrame, M: Int, k: Int,
+  def validate(observations: DataFrame, M: Int, k: Int, T: Int,
                initialPi: DenseVector[Double], initialA: DenseMatrix[Double], initialB: DenseMatrix[Double]):
   DataFrame = {
     observations
@@ -167,8 +181,8 @@ object BaumWelchAlgorithm {
       .withColumn("Pi", lit(initialPi.toArray))
       .withColumn("A", lit(initialA.toArray))
       .withColumn("B", lit(initialB.toArray))
-      .withColumn("obs", udf_toarray(col("str_obs")))
-      .withColumn("T", udf_obssize(col("obs")))
+      .withColumn("obs", udf_toarray_length(col("str_obs"), lit(T)))
+      .withColumn("T", udf_obssize_length(col("obs"), lit(T)))
       .withColumn("obslik", udf_multinomialprob(col("obs"), col("M"), col("k"), col("T"), col("B")))
       .withColumn("prob", udf_fwd(col("M"), col("T"), col("Pi"), col("A"), col("obslik")))
       .drop("str_obs", "M", "k", "Pi", "A", "B", "obs", "T", "obslik")
@@ -176,7 +190,9 @@ object BaumWelchAlgorithm {
 
   /** * udf functions ****/
   val udf_toarray: UserDefinedFunction = udf((s: String) => s.split(";").map(_.toInt))
+  val udf_toarray_length: UserDefinedFunction = udf((s: String, t: Int) => s.split(";").map(_.toInt).slice(0, t))
   val udf_obssize: UserDefinedFunction = udf((s: Seq[Int]) => s.length)
+  val udf_obssize_length: UserDefinedFunction = udf((s: Seq[Int], t: Int) => if(s.length < t) s.length else t)
 
   /** * udf_multinomialprob ****/
   val udf_multinomialprob: UserDefinedFunction = udf((obs: Seq[Int], M: Int, k: Int, T: Int, B: Seq[Double]) => {

@@ -24,6 +24,7 @@ object Validate {
 
     val M = arraymodel(0).toInt
     val k = arraymodel(1).toInt
+    val T = 1000
 
     val Pi: DenseVector[Double] = new DenseVector(arraymodel(2).split(",").map(_.toDouble))
     val A = new DenseMatrix(M, M, arraymodel(3).split(",").map(_.toDouble))
@@ -32,7 +33,7 @@ object Validate {
     val sample: DataFrame = sparkSession.read.csv(args(0))
       .withColumnRenamed("_c0", "workitem").withColumnRenamed("_c1", "str_obs")
 
-    val result = hmm.BaumWelchAlgorithm.validate(sample, M, k, Pi, A, B)
+    val result = hmm.BaumWelchAlgorithm.validate(sample, M, k, T, Pi, A, B)
 
     result
       .select("workitem", "prob").coalesce(1)

@@ -36,6 +36,8 @@ object newMAtrix {
     log.info("Value of value_M: " + value_M)
     val value_k = applicationProps.getProperty("value_k").toInt
     log.info("Value of value_k: " + value_k)
+    val value_T = applicationProps.getProperty("value_T").toInt
+    log.info("Value of value_T: " + value_T)
     val number_partitions = applicationProps.getProperty("number_partitions").toInt
     log.info("Value of number_partitions: " + number_partitions)
     val value_epsilon = applicationProps.getProperty("value_epsilon").toDouble
@@ -100,11 +102,11 @@ object newMAtrix {
         log.info("++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
 
       val resultClass1 =
-        hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k,
+        hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k, value_T,
           new DenseVector(modelClass1._1), new DenseMatrix(value_M, value_M, modelClass1._2), new DenseMatrix(value_M, value_k, modelClass1._3))
           .withColumnRenamed("prob", "probMod1").as("valMod1")
           .join(
-            hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k,
+            hmm.BaumWelchAlgorithm.validate(validClass1, value_M, value_k, value_T,
               new DenseVector(modelClass0._1), new DenseMatrix(value_M, value_M, modelClass0._2), new DenseMatrix(value_M, value_k, modelClass0._3))
               .withColumnRenamed("prob", "probMod0").as("valMod0"),
             col("valMod1.workitem") === col("valMod0.workitem"), "inner")
@@ -116,11 +118,11 @@ object newMAtrix {
       log.info("Value of resultClass1: " + resultClass1.count())
 
       val resultClass0 =
-        hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k,
+        hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k, value_T,
           new DenseVector(modelClass1._1), new DenseMatrix(value_M, value_M, modelClass1._2), new DenseMatrix(value_M, value_k, modelClass1._3))
           .withColumnRenamed("prob", "probMod1").as("valMod1")
           .join(
-            hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k,
+            hmm.BaumWelchAlgorithm.validate(validClass0, value_M, value_k, value_T,
               new DenseVector(modelClass0._1), new DenseMatrix(value_M, value_M, modelClass0._2), new DenseMatrix(value_M, value_k, modelClass0._3))
               .withColumnRenamed("prob", "probMod0").as("valMod0"),
             col("valMod1.workitem") === col("valMod0.workitem"), "inner")
